@@ -48,7 +48,7 @@ Travel times assume a two-minute dispatch delay and about 24 km/h in city traffi
 
 ## Demo locations worth trying
 
-- **Manesar, Gurugram:** the nearest hospital is far closer than any advanced ambulance, so the agent should suggest a cab.
+- **Manesar, Gurugram:** no advanced ambulance can arrive within 20 minutes and a hospital is 2 minutes away, so the agent should offer no ambulance and suggest a cab.
 - **Yelahanka, Bangalore:** no advanced life support ambulance is nearby, so the agent should offer a basic one and say so.
 
 ## Tools the agent can call
