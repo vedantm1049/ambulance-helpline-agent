@@ -31,9 +31,8 @@ const secs = (t) => Math.round((t - state.t0) / 1000);
 const fmtSecs = (s) => (s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // Language the caller is actually speaking, read from the script of their last three intake messages.
-// Speech recognition writes Hindi in Devanagari and Kannada in Kannada script, so this does not depend on the agent remembering to update the card.
+// Speech recognition writes Hindi in Devanagari, so this does not depend on the agent remembering to update the card.
 function scriptOf(text) {
-  if (/[\u0C80-\u0CFF]/.test(text)) return "Kannada";
   if (/[\u0900-\u097F]/.test(text)) return "Hindi";
   return /[a-z]{2}/i.test(text) ? "English" : null;
 }
@@ -46,7 +45,7 @@ function callerLang() {
     // Majority wins; on a tie, the most recent language wins.
     return [...recent].reverse().find((l) => count[l] === top);
   }
-  return ["Hindi", "Kannada", "English"].includes(state.card.language) ? state.card.language : "English";
+  return ["Hindi", "English"].includes(state.card.language) ? state.card.language : "English";
 }
 
 function el(tag, attrs = {}, ...kids) {

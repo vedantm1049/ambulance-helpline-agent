@@ -14,7 +14,7 @@ The "Returns" notes are for the page code, not the dashboard. There is no field 
 
 | Identifier | Description |
 |---|---|
-| `language` | Language the caller is speaking: Hindi, English or Kannada. |
+| `language` | Language the caller is speaking: Hindi or English. Any other language is Other. |
 | `location_text` | Location as confirmed with the caller: house or society, street, area. |
 | `landmark` | Nearest landmark the caller named. |
 | `city` | One of: Gurugram, Delhi, Noida, Bangalore, Other. |

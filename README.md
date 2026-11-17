@@ -1,6 +1,6 @@
 # Ambulance Helpline: voice intake prototype
 
-A voice agent built on ElevenLabs ElevenAgents that runs the first minutes of an ambulance call in Hindi, English or Kannada. It confirms the caller's location, triages the emergency, books the nearest suitable ambulance, calls the ambulance operator to confirm dispatch, and calls the caller back.
+A voice agent built on ElevenLabs ElevenAgents that runs the first minutes of an ambulance call in Hindi or English. It confirms the caller's location, triages the emergency, books the nearest suitable ambulance, calls the ambulance operator to confirm dispatch, and calls the caller back.
 
 **Live demo:** https://vedantm1049.github.io/ambulance-helpline-agent/
 **No microphone:** https://vedantm1049.github.io/ambulance-helpline-agent/?mock=1 (a scripted replay, no AI)
@@ -15,7 +15,7 @@ This prototype rebuilds that flow on ElevenAgents to see how much of it a voice 
 
 ## How a case runs
 
-1. **Intake call.** You play the caller. The agent opens in English and follows you into Hindi or Kannada. It asks for location first, by voice: area, city and nearest landmark, spelled out if unclear, read back once. It does not ask about the emergency until the location is confirmed. It then asks what happened, whether the patient is awake, and whether they are breathing normally. It never asks for the phone number, which comes from caller ID.
+1. **Intake call.** You play the caller. The agent opens in English and follows you into Hindi, including mixed Hindi and English. It asks for location first, by voice: area, city and nearest landmark, spelled out if unclear, read back once. It does not ask about the emergency until the location is confirmed. It then asks what happened, whether the patient is awake, and whether they are breathing normally. It never asks for the phone number, which comes from caller ID.
 2. **Nearest help.** The page, not the AI, decides priority, ambulance type, the nearest operator and the nearest suitable hospital. If the hospital is at least five minutes closer than the ambulance on a serious call, the agent suggests a cab. The caller says yes or no.
 3. **Operator call.** The agent calls the nearest operator and asks if they can dispatch now. "We will try" counts as no. It moves to the next operator, up to three. You can play the operator yourself or let the page simulate them.
 4. **Callback.** The agent calls the caller back with the confirmed arrival time, says the vehicle details are on WhatsApp, then collects the patient's name and age and the caller's name.
@@ -24,6 +24,7 @@ Anything the agent cannot handle goes to a human dispatcher: unclear location, u
 
 ## Design decisions
 
+- **Kannada was cut after testing.** The real helpline worked in Hindi, English and Kannada, and the first version did too. In a test call with a recorded Kannada caller, speech recognition turned a short Kannada answer into Hindi script. The agent then switched to Hindi, the landmark ("near Forum Mall's back gate") came through as Kannada sounds written in Hindi letters, and the call ended in a hand-off because the location could not be confirmed. Prompt rules and place-name hints reduce this but do not fix it. Kannada callers now go straight to a human call taker. A language that fails on the location step is worse than no language.
 - **Location by voice only.** The real helpline also sent an SMS link that returned GPS. In testing, the browser stand-in for it confused callers and left 17 seconds of silence, so it was cut. The agent now gets location the way a call taker does without GPS: area, landmark, spelling, one read-back.
 
 - **The AI collects. Fixed rules decide.** Priority, ambulance type and routing are plain code in `js/dispatch.js` with unit tests. The helpline moved the same way in practice: call takers stopped judging priority and an input model did it. A wrong triage call should come from a rule someone can read, not from a model guess.
@@ -94,7 +95,7 @@ Calls run on the live demo. Results are recorded as they happened, including fai
 |---|---|---|---|---|---|---|
 | 1 | | Chest pain, Sector 47, clear answers | Hindi | | | |
 | 2 | | Collapsed, not breathing, panicked caller, asks about aspirin | English | | | |
-| 3 | | Road accident, Koramangala | Kannada | | | |
+| 3 | | Road accident, Koramangala, caller speaks only Kannada | Kannada | | | |
 | 4 | | Vague location, spelled out, switches language | Hindi then English | | | |
 | 5 | | Live operator says "we will try", second confirms | Hindi | | | |
 | 6 | | Manesar, caller chooses own vehicle | Any | | | |
@@ -102,6 +103,6 @@ Calls run on the live demo. Results are recorded as they happened, including fai
 ## Known limits
 
 - Six test calls show the flow works. They do not show it is reliable.
-- Kannada and Hindi opening lines need a native speaker's check.
+- Hindi opening lines need a native speaker's check.
 - A public agent ID can be used by anyone on an allowed domain. The allowlist and a call length cap limit this, but do not prevent it.
 - The SDK bundle in `vendor/` is `@elevenlabs/client` 1.36.1 (MIT licence), vendored so the page does not depend on a CDN.

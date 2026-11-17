@@ -34,7 +34,6 @@ Still on the **Agent** tab.
 
 1. Find the language setting. The default should say **English**. Leave it.
 2. Find **Additional languages** and add **Hindi**.
-3. Add **Kannada**. If Kannada is not in the list, stop and tell me. We ship Hindi and English.
 4. If the dashboard offers a separate first message per language, leave them all as `{{opening_line}}`. The web page supplies the line in the right language.
 
 ## Part D. The AI model (2 minutes)
@@ -98,7 +97,6 @@ Counts, so you can check yourself: `updateDispatchCard` 13, `findNearestHelp` 4,
 
 1. The **agent ID**. It starts with `agent_`. Look in the browser address bar while the agent is open, or for a copy icon next to the agent name.
 2. The voice model name from Part F.
-3. Whether Kannada was in the language list.
 
 ## Part J. One short test (2 minutes of your 75)
 
@@ -111,6 +109,6 @@ Expect the card tools to fail or stall here. They need the web page, which I bui
 ## Part K. After the site is live (5 minutes)
 
 1. **Security tab, allowlist:** add `vedantm1049.github.io`. Only that site can then start calls with your agent. Add `localhost:8000` too if you want to run it on your computer.
-2. **Security tab, overrides:** if you see an override switch for **Language**, turn it on. It lets the callback start in Hindi or Kannada from the first word. If it is not there, skip it. The page falls back to English and the agent switches after the first reply.
+2. **Security tab, overrides:** if you see an override switch for **Language**, turn it on. It lets the callback start in Hindi from the first word. If it is not there, skip it. The page falls back to English and the agent switches after the first reply.
 3. **Max call length:** if you find a setting for maximum conversation duration, set it to 4 minutes. It stops a stuck or abused call from eating your 75 minutes.
 4. **First message:** confirm it says exactly `{{opening_line}}`. The page fills it for each call.

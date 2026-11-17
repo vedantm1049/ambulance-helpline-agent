@@ -1,7 +1,5 @@
 # Ambulance Helpline demo line: knowledge base
 
-Upload this file as the agent's knowledge base. It covers enquiry calls. Delete this line before upload.
-
 ## What the helpline does
 The Ambulance Helpline is a medical emergency helpline. A caller reaches a call taker, who finds the nearest suitable ambulance and hospital and arranges the booking. The helpline works with partner ambulance operators. It does not run a hospital.
 
@@ -14,7 +12,7 @@ Delhi NCR (Delhi, Gurugram, Noida) and Bangalore. Calls from other cities cannot
 24 hours a day, 7 days a week.
 
 ## Languages
-Hindi, English and Kannada.
+Hindi and English. Callers who speak another language, including Kannada, are passed to a human call taker who calls them back.
 
 ## Ambulance types
 - **ACLS, advanced life support.** For patients who are critical or may get worse on the way. Carries cardiac monitoring and resuscitation equipment.
@@ -35,7 +33,7 @@ The call taker chooses the type from the caller's answers. Callers do not need t
 
 ## What the caller will be asked
 1. Location and nearest landmark. The caller may be asked to spell a name.
-2. What happened, whether the patient is awake, whether the patient is breathing normally, and the patient's age.
+2. What happened, whether the patient is awake, and whether the patient is breathing normally.
 3. Whether another ambulance has already been called.
 4. After booking, the helpline confirms with the ambulance operator and calls the caller back. On that call it asks for the patient's name and age and the caller's name.
 
