@@ -11,6 +11,7 @@ const TYPE_NAME = { ACLS: "ACLS (advanced life support)", BLS: "BLS (basic life 
 const state = {
   stage: "IDLE",            // IDLE, INTAKE, OPERATOR, CALLBACK, DONE
   card: {},
+  callerLines: [],
   sharedPosition: null,
   help: null,
   booking: null,
@@ -29,7 +30,24 @@ const state = {
 const secs = (t) => Math.round((t - state.t0) / 1000);
 const fmtSecs = (s) => (s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const callerLang = () => (["Hindi", "Kannada", "English"].includes(state.card.language) ? state.card.language : "English");
+// Language the caller is actually speaking, read from the script of their last three intake messages.
+// Speech recognition writes Hindi in Devanagari and Kannada in Kannada script, so this does not depend on the agent remembering to update the card.
+function scriptOf(text) {
+  if (/[\u0C80-\u0CFF]/.test(text)) return "Kannada";
+  if (/[\u0900-\u097F]/.test(text)) return "Hindi";
+  return /[a-z]{2}/i.test(text) ? "English" : null;
+}
+function callerLang() {
+  const recent = state.callerLines.map(scriptOf).filter(Boolean).slice(-3);
+  if (recent.length) {
+    const count = {};
+    for (const l of recent) count[l] = (count[l] ?? 0) + 1;
+    const top = Math.max(...Object.values(count));
+    // Majority wins; on a tie, the most recent language wins.
+    return [...recent].reverse().find((l) => count[l] === top);
+  }
+  return ["Hindi", "Kannada", "English"].includes(state.card.language) ? state.card.language : "English";
+}
 
 function el(tag, attrs = {}, ...kids) {
   const n = document.createElement(tag);
@@ -56,6 +74,7 @@ function addTranscript(role, text) {
   const who = role === "agent" ? "Agent" : state.stage === "OPERATOR" ? "Operator" : "Caller";
   const clean = String(text).replace(/\[[^\]]{1,40}\]\s*/g, "").trim();
   if (!clean) return;
+  if (role !== "agent" && state.stage === "INTAKE") state.callerLines.push(clean);
   $("transcript").append(el("div", { class: `line ${role}` }, el("span", { class: "who" }, `${stageLabel()} · ${who}`), el("p", {}, clean)));
   $("transcript").scrollTop = $("transcript").scrollHeight;
 }
@@ -364,9 +383,11 @@ function confirmAmbulance(op, eta) {
 // ---------- callback stage ----------
 
 function goToCallback(confirmed) {
+  const lang = callerLang();
+  state.card.language = lang;
+  renderCard(["language"]);
   state.stage = "CALLBACK";
   setStepper();
-  const lang = callerLang();
   const h = state.help?.hospital;
   const result = confirmed
     ? `Ambulance confirmed. Operator: ${state.confirmed.provider}. Type: ${state.confirmed.type}. Arriving in about ${state.confirmed.eta_minutes} minutes. Vehicle and driver details sent on WhatsApp.`
@@ -388,7 +409,7 @@ function finish(note) {
 }
 
 function resetCase() {
-  Object.assign(state, { stage: "IDLE", card: {}, sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null });
+  Object.assign(state, { stage: "IDLE", card: {}, callerLines: [], sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null });
   $("transcript").innerHTML = "";
   $("toolLog").innerHTML = "";
   $("whatsapp").innerHTML = '<p class="muted">Messages to the operator and the caller appear here.</p>';
