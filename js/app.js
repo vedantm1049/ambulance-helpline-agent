@@ -1,5 +1,5 @@
 import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, nearestArea, normaliseCity, matchEmergencyType } from "./dispatch.js";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js";
 import { LANG_CODE, intakeOpening, operatorOpening, callbackOpening } from "./lines.js";
 import { MockConversation } from "./mock.js";
 
@@ -54,7 +54,9 @@ function stageLabel() {
 
 function addTranscript(role, text) {
   const who = role === "agent" ? "Agent" : state.stage === "OPERATOR" ? "Operator" : "Caller";
-  $("transcript").append(el("div", { class: `line ${role}` }, el("span", { class: "who" }, `${stageLabel()} · ${who}`), el("p", {}, text)));
+  const clean = String(text).replace(/\[[^\]]{1,40}\]\s*/g, "").trim();
+  if (!clean) return;
+  $("transcript").append(el("div", { class: `line ${role}` }, el("span", { class: "who" }, `${stageLabel()} · ${who}`), el("p", {}, clean)));
   $("transcript").scrollTop = $("transcript").scrollHeight;
 }
 
@@ -165,12 +167,6 @@ const tools = {
     return "ok";
   },
 
-  requestLocationShare: async () => {
-    const res = await askForLocation();
-    logTool("requestLocationShare", {}, res);
-    return JSON.stringify(res);
-  },
-
   findNearestHelp: (p) => {
     const full = findNearestHelp(p, { sharedPosition: state.sharedPosition, locationText: locationText() });
     state.help = full;
@@ -209,38 +205,6 @@ const tools = {
   },
 };
 
-// ---------- location modal (stands in for the SMS location link) ----------
-
-function askForLocation() {
-  return new Promise((resolve) => {
-    const modal = $("locModal");
-    const select = $("locArea");
-    let done = false;
-    const finish = (res) => { if (done) return; done = true; modal.close(); clearTimeout(timer); resolve(res); };
-    const share = (area, how) => {
-      state.sharedPosition = { lat: area.lat, lng: area.lng, area: area.name, city: area.city };
-      finish({ status: "shared", area: area.name, city: area.city, how });
-    };
-    $("locDemo").onclick = () => share(AREAS.find((a) => a.name === select.value), "demo location");
-    $("locDecline").onclick = () => finish({ status: "denied" });
-    $("locReal").onclick = () => {
-      if (!navigator.geolocation) return finish({ status: "unavailable" });
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const a = nearestArea(pos.coords.latitude, pos.coords.longitude);
-          if (a) share(a, "device location");
-          else finish({ status: "shared", area: "outside the service area", city: "Other" });
-        },
-        () => finish({ status: "denied" }),
-        { timeout: 10000 }
-      );
-    };
-    const timer = setTimeout(() => finish({ status: "unavailable", reason: "caller did not respond" }), 30000);
-    modal.showModal();
-    if (MOCK) setTimeout(() => $("locDemo").click(), 1200);
-  });
-}
-
 // ---------- sessions ----------
 
 async function startSession(args) {
@@ -268,7 +232,7 @@ async function startSession(args) {
     onMessage: (m) => addTranscript(m.role === "agent" || m.source === "ai" ? "agent" : "user", m.message),
     onModeChange: ({ mode }) => setStatus(mode === "speaking" ? "Agent speaking…" : "Listening…", "live"),
   };
-  const base = { agentId: AGENT_ID, connectionType: "webrtc", dynamicVariables, clientTools: tools, ...callbacks };
+  const base = { agentId: AGENT_ID, connectionType: "webrtc", dynamicVariables, clientTools: tools, stripAudioTags: true, ...callbacks };
 
   try {
     if (MOCK) { state.conversation = await MockConversation.startSession(base, stage); return; }
@@ -323,7 +287,9 @@ function operators() { return state.help?._operators ?? []; }
 
 function caseFacts() {
   const c = state.card;
-  const place = [c.location_text, c.landmark ? `near ${c.landmark}` : "", c.city].filter(Boolean).join(", ") || state.help?._position?.area || "the caller's location";
+  const loc = c.location_text ?? "";
+  const has = (x) => x && loc.toLowerCase().includes(String(x).toLowerCase());
+  const place = [loc, has(c.landmark) ? "" : c.landmark ? `near ${c.landmark}` : "", has(c.city) ? "" : c.city].filter(Boolean).join(", ") || state.help?._position?.area || "the caller's location";
   return { type: state.help?.ambulance_type ?? "ACLS", emergency: (c.emergency_type ?? "medical emergency").toLowerCase(), place };
 }
 
@@ -433,8 +399,9 @@ function resetCase() {
 // ---------- boot ----------
 
 function boot() {
-  const sel = $("locArea");
-  for (const a of AREAS) sel.append(el("option", { value: a.name }, `${a.name}, ${a.city}`));
+  const byCity = {};
+  for (const a of AREAS) (byCity[a.city] ??= []).push(a.name);
+  $("areaList").textContent = Object.entries(byCity).map(([c, xs]) => `${c}: ${xs.join(", ")}`).join(". ") + ".";
   $("scenarioSelf").textContent = SCENARIO_AREAS.selfTransport;
   $("scenarioFallback").textContent = SCENARIO_AREAS.fallback;
   if (MOCK) $("mockBanner").hidden = false;

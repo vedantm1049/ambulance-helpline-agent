@@ -28,7 +28,7 @@
     <section class="col call">
       <div class="panel">
         <h2>Call</h2>
-        <p class="hint">You play the caller. Allow the microphone, then describe an emergency. Answer the agent's questions as a family member would.</p>
+        <p class="hint">You play the caller. Allow the microphone, then describe an emergency. Answer the agent's questions as a family member would. Give your location by voice, using one of the demo areas below.</p>
         <button id="action" class="btn primary">Start the call as the caller</button>
         <p id="status" class="status">Ready.</p>
         <p id="metrics" class="metrics"></p>
@@ -54,7 +54,8 @@
             </select>
           </label>
         </div>
-        <p class="hint">Try the location <strong id="scenarioSelf"></strong> for the "hospital is closer, take a cab" rule, and <strong id="scenarioFallback"></strong> for the basic ambulance fallback. <a href="?mock=1">No microphone? Watch a scripted walkthrough.</a></p>
+        <p class="hint"><strong>Demo areas.</strong> <span id="areaList"></span> Other areas work, but the page then estimates the position from the city centre.</p>
+        <p class="hint">Try <strong id="scenarioSelf"></strong> for the "hospital is closer, take a cab" rule, and <strong id="scenarioFallback"></strong> for the basic ambulance fallback. <a href="?mock=1">No microphone? Watch a scripted walkthrough.</a></p>
       </div>
 
       <div class="panel grow">
@@ -98,17 +99,6 @@
     <p>Built by Vedant Jain. Modelled on the intake flow of a medical emergency helpline he co-founded in India. All hospitals, ambulance operators, drivers, times and fares are invented. No call leaves this browser: the operator and the callback are played by you or simulated. <a href="https://github.com/vedantm1049/ambulance-helpline-agent">Source and test log</a></p>
   </footer>
 
-  <dialog id="locModal">
-    <h3>The helpline is asking for your location</h3>
-    <p>On the real helpline this was an SMS link. Here, pick a demo location or share your device location.</p>
-    <label>Demo location <select id="locArea"></select></label>
-    <div class="row">
-      <button id="locDemo" class="btn primary">Share this location</button>
-      <button id="locReal" class="btn">Use my device location</button>
-      <button id="locDecline" class="btn ghost">Decline</button>
-    </div>
-    <p class="hint">Device location only works inside Delhi NCR or Bangalore. Elsewhere the agent will say you are outside the service area.</p>
-  </dialog>
 
   <script src="vendor/elevenlabs-client-1.36.1.iife.js"></script>
   <script type="module" src="js/app.js"></script>

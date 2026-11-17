@@ -4,7 +4,7 @@ A client tool is a function that runs on the demo web page, not on a server. The
 
 Create each one in the dashboard: Add tool, Tool Type "Client". Names are case-sensitive and must match exactly. Every parameter is Data Type String.
 
-There are six tools and 23 parameters in total.
+There are five tools and 23 parameters in total. An earlier sixth tool, `requestLocationShare`, was removed after the first test call: location is now taken by voice only.
 
 The "Returns" notes are for the page code, not the dashboard. There is no field for them. Skip them when you set up each tool.
 
@@ -27,14 +27,6 @@ The "Returns" notes are for the page code, not the dashboard. There is no field 
 | `patient_age` | Age of the patient in years, as a number. |
 | `patient_gender` | male, female or other, only if the caller mentions it. |
 | `caller_name` | Name of the caller. |
-
-## 2. requestLocationShare (0 parameters, Wait for response ON)
-
-**Description:** Ask the caller's device for its GPS location. Call once at the start of the location step, after telling the caller to tap Allow. Returns the area and city, or a failure reason.
-
-Returns: `{ "status": "shared" | "denied" | "unavailable", "area": "...", "city": "..." }`
-
-This stands in for the SMS location link used on the real helpline. In the browser it is the "Allow location" prompt.
 
 ## 3. findNearestHelp (4 parameters, all required, Wait for response ON)
 

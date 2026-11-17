@@ -15,7 +15,7 @@ This prototype rebuilds that flow on ElevenAgents to see how much of it a voice 
 
 ## How a case runs
 
-1. **Intake call.** You play the caller. The agent opens in English and follows you into Hindi or Kannada. It asks for location first and sends a location request (this stood in for an SMS link on the real helpline). It does not ask about the emergency until the location is confirmed. It then asks what happened, whether the patient is awake, and whether they are breathing normally. It never asks for the phone number, which comes from caller ID.
+1. **Intake call.** You play the caller. The agent opens in English and follows you into Hindi or Kannada. It asks for location first, by voice: area, city and nearest landmark, spelled out if unclear, read back once. It does not ask about the emergency until the location is confirmed. It then asks what happened, whether the patient is awake, and whether they are breathing normally. It never asks for the phone number, which comes from caller ID.
 2. **Nearest help.** The page, not the AI, decides priority, ambulance type, the nearest operator and the nearest suitable hospital. If the hospital is at least five minutes closer than the ambulance on a serious call, the agent suggests a cab. The caller says yes or no.
 3. **Operator call.** The agent calls the nearest operator and asks if they can dispatch now. "We will try" counts as no. It moves to the next operator, up to three. You can play the operator yourself or let the page simulate them.
 4. **Callback.** The agent calls the caller back with the confirmed arrival time, says the vehicle details are on WhatsApp, then collects the patient's name and age and the caller's name.
@@ -24,10 +24,12 @@ Anything the agent cannot handle goes to a human dispatcher: unclear location, u
 
 ## Design decisions
 
+- **Location by voice only.** The real helpline also sent an SMS link that returned GPS. In testing, the browser stand-in for it confused callers and left 17 seconds of silence, so it was cut. The agent now gets location the way a call taker does without GPS: area, landmark, spelling, one read-back.
+
 - **The AI collects. Fixed rules decide.** Priority, ambulance type and routing are plain code in `js/dispatch.js` with unit tests. The helpline moved the same way in practice: call takers stopped judging priority and an input model did it. A wrong triage call should come from a rule someone can read, not from a model guess.
 - **One agent, three calls.** The same agent handles intake, operator and callback. The page passes the stage and the case details as dynamic variables at the start of each call. One agent is easier to maintain. The risk is role confusion, which the test log tracks.
 - **The page writes the operator and callback opening lines.** The time-critical facts (what is needed, where, the arrival time) are spoken from page text, not generated. The model handles the conversation after that.
-- **Client tools, no server.** All six tools run in the browser. The agent is public with a domain allowlist, so there is no API key to hide.
+- **Client tools, no server.** All five tools run in the browser. The agent is public with a domain allowlist, so there is no API key to hide.
 
 ## What is real and what is simulated
 
@@ -36,7 +38,7 @@ Anything the agent cannot handle goes to a human dispatcher: unclear location, u
 | Voice conversation, language switching, tool calls | Real, ElevenAgents |
 | Triage and routing rules | Real code, invented data |
 | Hospitals, ambulance operators, drivers, vehicles, fares | Invented |
-| Location request | Browser prompt with demo locations, standing in for an SMS link |
+| Patient position | Matched from the area name the caller speaks to a list of demo areas |
 | Operator and callback phone calls | Played in the browser, by you or simulated. No phone rings |
 | WhatsApp messages | Shown on screen only |
 
@@ -52,7 +54,6 @@ Travel times assume a two-minute dispatch delay and about 24 km/h in city traffi
 | Tool | Waits for a reply | What it does |
 |---|---|---|
 | `updateDispatchCard` | No | Fills the dispatch card as facts come in |
-| `requestLocationShare` | Yes | Asks the caller's device for location |
 | `findNearestHelp` | Yes | Returns priority, ambulance type, operator, ETA, fare, hospital, and the cab rule |
 | `bookAmbulance` | No | Records the caller's decision and starts operator calls |
 | `reportOperatorResponse` | No | Records confirmed, declined or unclear |
@@ -94,7 +95,7 @@ Calls run on the live demo. Results are recorded as they happened, including fai
 | 1 | | Chest pain, Sector 47, clear answers | Hindi | | | |
 | 2 | | Collapsed, not breathing, panicked caller, asks about aspirin | English | | | |
 | 3 | | Road accident, Koramangala | Kannada | | | |
-| 4 | | Vague location, declines location request, switches language | Hindi then English | | | |
+| 4 | | Vague location, spelled out, switches language | Hindi then English | | | |
 | 5 | | Live operator says "we will try", second confirms | Hindi | | | |
 | 6 | | Manesar, caller chooses own vehicle | Any | | | |
 

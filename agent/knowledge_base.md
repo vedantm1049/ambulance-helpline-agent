@@ -34,7 +34,7 @@ The call taker chooses the type from the caller's answers. Callers do not need t
 - It does not arrange inter-city transfers.
 
 ## What the caller will be asked
-1. Location and nearest landmark. A location request may be sent to the caller's phone.
+1. Location and nearest landmark. The caller may be asked to spell a name.
 2. What happened, whether the patient is awake, whether the patient is breathing normally, and the patient's age.
 3. Whether another ambulance has already been called.
 4. After booking, the helpline confirms with the ambulance operator and calls the caller back. On that call it asks for the patient's name and age and the caller's name.

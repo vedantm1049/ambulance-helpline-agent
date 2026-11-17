@@ -60,11 +60,11 @@ Still on the **Agent** tab.
 
 ## Part G. Tools (20 minutes, the longest part)
 
-A tool is an action the agent can take during a call, like filling the on-screen card. You will add six of your own and switch on two built-in ones.
+A tool is an action the agent can take during a call, like filling the on-screen card. You will add five of your own and switch on two built-in ones.
 
 Open `client_tools.md` and keep it beside the dashboard.
 
-### Add the six client tools
+### Add the five client tools
 
 Repeat these steps for each tool in `client_tools.md`:
 
@@ -72,7 +72,7 @@ Repeat these steps for each tool in `client_tools.md`:
 2. Set **Tool Type** to **Client**.
 3. **Name:** copy it exactly, including capital letters. Example: `updateDispatchCard`.
 4. **Description:** copy the description line from the file.
-5. **Wait for response:** tick it only for `requestLocationShare` and `findNearestHelp`. Leave it off for the other four.
+5. **Wait for response:** tick it only for `findNearestHelp`. Leave it off for the other four.
 6. For each row in that tool's parameter table, click the button to add a parameter and fill in:
    - **Data Type:** String
    - **Identifier:** the name in the first column, for example `location_text`
@@ -80,7 +80,7 @@ Repeat these steps for each tool in `client_tools.md`:
    - **Description:** the text in the description column
 7. Save the tool.
 
-Counts, so you can check yourself: `updateDispatchCard` 13, `requestLocationShare` 0, `findNearestHelp` 4, `bookAmbulance` 1, `reportOperatorResponse` 3, `handOffToDispatcher` 2.
+Counts, so you can check yourself: `updateDispatchCard` 13, `findNearestHelp` 4, `bookAmbulance` 1, `reportOperatorResponse` 3, `handOffToDispatcher` 2.
 
 ### Switch on the two built-in tools
 
