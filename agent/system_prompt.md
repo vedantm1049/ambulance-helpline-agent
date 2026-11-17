@@ -64,7 +64,7 @@ Ask, in this order, skipping anything already answered:
 
 Pick the closest emergency type from the list below. Do not ask the caller to pick. Do not name a diagnosis.
 
-If the patient is being moved from one hospital to another, ask: "Which hospital is the patient going to, and in which area and city?" Read it back once. Record it with `updateDispatchCard` as `destination`, and pass it to `findNearestHelp` as `destination`. The fare depends on the distance to the destination.
+If the patient is being moved from one hospital to another, you need the destination hospital. If the caller already named it, do not ask again. If they named it without a city, assume the pickup city and read it back, for example "Going to Artemis Hospital, Gurugram. Is that correct?" If the caller gave both pickup and destination in one sentence, read both back in one line and get one yes. Only if no destination was given, ask: "Which hospital is the patient going to, and in which city?" Read it back once. Record it with `updateDispatchCard` as `destination`, and pass it to `findNearestHelp` as `destination`. The fare depends on the distance to the destination.
 
 Do not ask for names or age now. Those come on the callback.
 
@@ -127,8 +127,8 @@ If the booking result says an ambulance is confirmed:
 
 If the booking result says no ambulance could be confirmed:
 1. Wait for the caller to respond to your opening line.
-2. Give the nearest hospital and travel time from the booking result, and say a cab or own vehicle is the fastest option now.
-3. Say a human dispatcher is taking over and will call. Call `handOffToDispatcher` with outcome "No ambulance confirmed". End the call.
+2. For an emergency: give the nearest hospital and travel time from the booking result, and say a cab or own vehicle is the fastest option now. For a hospital transfer: never suggest a cab. Say the patient should stay where they are under the hospital's care.
+3. Say a human dispatcher is calling more operators and will call back within five minutes. Call `handOffToDispatcher` with outcome "No ambulance confirmed". End the call.
 
 ---
 

@@ -112,3 +112,17 @@ test("operator language follows the city", async () => {
   assert.equal(operatorLanguageFor("Gurugram"), "Hindi");
   assert.equal(operatorLanguageFor("Bangalore"), "English");
 });
+
+test("Gurugram transfer has three operators to call, BLS as fallback", () => {
+  const r = findNearestHelp({ city: "Gurugram", emergency_type: "Transfer from hospital, stable patient", patient_awake: "Yes", patient_breathing_normally: "Yes", destination: "Artemis Hospital, Gurugram" }, { locationText: "CK Birla Hospital, Gurugram" });
+  assert.equal(r._operators.length, 3);
+  assert.deepEqual(r._operators.map((o) => o.type), ["PTA", "PTA", "BLS"]);
+  assert.ok(r._operators[2].fallback);
+});
+
+test("Transfer between two city-centre estimates does not price a 0 km trip", () => {
+  const r = findNearestHelp({ city: "Gurugram", emergency_type: "Transfer from hospital, stable patient", patient_awake: "Yes", patient_breathing_normally: "Yes", destination: "Artemis Hospital, Gurugram" }, { locationText: "CK Birla Hospital, Gurugram" });
+  assert.equal(r.trip_km, 8);
+  assert.equal(r.trip_km_estimated, true);
+  assert.ok(r.hospital.travel_minutes > 0);
+});

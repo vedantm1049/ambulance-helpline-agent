@@ -59,6 +59,7 @@ export const AMBULANCES = [
   { id: "GGN-B1", provider: "CareLine Ambulance", type: "BLS", city: "Gurugram", lat: 28.4350, lng: 77.0600 },
   { id: "GGN-B2", provider: "Swift Ambulance Co.", type: "BLS", city: "Gurugram", lat: 28.4900, lng: 77.0950 },
   { id: "GGN-P1", provider: "CareLine Ambulance", type: "PTA", city: "Gurugram", lat: 28.4600, lng: 77.0750 },
+  { id: "GGN-P2", provider: "Capital Rescue", type: "PTA", city: "Gurugram", lat: 28.4250, lng: 77.0350 },
   // Delhi
   { id: "DEL-A1", provider: "Capital Rescue", type: "ACLS", city: "Delhi", lat: 28.5350, lng: 77.2100 },
   { id: "DEL-A2", provider: "Metro Life Support", type: "ACLS", city: "Delhi", lat: 28.6300, lng: 77.1800 },
@@ -228,7 +229,10 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
   const t = triage({ emergency_type, patient_awake, patient_breathing_normally });
   const isTransfer = t.type.startsWith("Transfer from hospital");
   const dest = isTransfer ? resolvePlace(destination) : null;
-  const tripKm = dest ? Math.round(km(pos, dest) * 1.3) : 8; // 1.3: roads are longer than straight lines
+  // 1.3: roads are longer than straight lines. If either end is only a city-centre estimate,
+  // the straight-line distance means nothing (both ends can land on the same point), so use the 8 km default.
+  const tripEstimated = !dest || dest.estimated || pos.source !== "area named on the call" && pos.source !== "shared location";
+  const tripKm = tripEstimated ? 8 : Math.max(2, Math.round(km(pos, dest) * 1.3));
 
   let candidates = rankAmbulances(t.required, pos, c, tripKm);
   let fallback = false;
@@ -247,7 +251,7 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
   let hospital = hospitals[0] ?? null;
   if (isTransfer && destination) {
     // The family chooses the destination, so it replaces the nearest-hospital suggestion.
-    hospital = { name: String(destination), travel_minutes: dest ? Math.round(tripKm * MIN_PER_KM) : null };
+    hospital = { name: String(destination), travel_minutes: Math.round(tripKm * MIN_PER_KM) };
   }
 
   const top = candidates[0];
@@ -264,13 +268,26 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
     ambulance: top ? { provider: top.provider, eta_minutes: top.eta_minutes, fare_range_inr: top.fare_range_inr } : null,
     hospital,
     advise_self_transport: advise,
-    ...(isTransfer ? { destination_needed: !destination, trip_km: dest ? tripKm : null } : {}),
+    ...(isTransfer ? { destination_needed: !destination, trip_km: tripKm, trip_km_estimated: tripEstimated } : {}),
     // Not needed by the agent, used by the page.
     _emergency_type: t.type,
     _destination: dest,
     _position: pos,
-    _operators: candidates.slice(0, 3),
+    _operators: operatorList(candidates, type, pos, c, tripKm),
   };
+}
+
+// Who to call, in order: the right vehicle type first, closest first. If there are fewer than three,
+// fill the list with the nearest BLS units, the helpline's fallback. Each entry keeps its own type and fare.
+export function operatorList(candidates, type, pos, city, tripKm, max = 3) {
+  const list = candidates.slice(0, max);
+  if (list.length < max && type !== "BLS") {
+    for (const u of rankAmbulances("BLS", pos, city, tripKm)) {
+      if (list.length >= max) break;
+      if (u.eta_minutes <= NEARBY_MAX_ETA_MIN) list.push({ ...u, fallback: true });
+    }
+  }
+  return list;
 }
 
 // What the agent is told, without the page-only fields.

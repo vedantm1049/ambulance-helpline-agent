@@ -29,6 +29,6 @@ export function callbackOpening(lang, confirmed, eta) {
     if (lang === "Hindi") return `एम्बुलेंस हेल्पलाइन से कॉल बैक है। आपकी एम्बुलेंस कन्फर्म हो गई है, लगभग ${eta} मिनट में पहुँचेगी।`;
     return `Ambulance Helpline calling back. Your ambulance is confirmed and should reach you in about ${eta} minutes.`;
   }
-  if (lang === "Hindi") return "एम्बुलेंस हेल्पलाइन से कॉल बैक है। माफ़ कीजिए, हम एम्बुलेंस कन्फर्म नहीं कर पाए।";
-  return "Ambulance Helpline calling back. I am sorry, we could not confirm an ambulance.";
+  if (lang === "Hindi") return "एम्बुलेंस हेल्पलाइन से कॉल बैक है। माफ़ कीजिए, अभी तक कोई एम्बुलेंस कन्फर्म नहीं हुई। हमारे डिस्पैचर अब आपका केस खुद संभाल रहे हैं।";
+  return "Ambulance Helpline calling back. I am sorry, no ambulance has confirmed yet. A dispatcher is now handling your case personally.";
 }

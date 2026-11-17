@@ -1,7 +1,7 @@
-import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=8";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=8";
-import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=8";
-import { MockConversation } from "./mock.js?v=8";
+import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=9";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=9";
+import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=9";
+import { MockConversation } from "./mock.js?v=9";
 
 const MOCK = new URLSearchParams(location.search).has("mock");
 const $ = (id) => document.getElementById(id);
