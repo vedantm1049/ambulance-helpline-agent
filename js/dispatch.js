@@ -115,6 +115,7 @@ export const DISPATCH_DELAY_MIN = 2;     // time for a crew to leave
 export const MIN_PER_KM = 2.5;           // about 24 km/h in city traffic
 export const NEARBY_MAX_ETA_MIN = 20;    // beyond this, a type counts as "not available nearby"
 export const SELF_TRANSPORT_GAP_MIN = 5; // the helpline's rule
+export const URGENT_MAX_ETA_MIN = 20;   // critical and urgent calls: never send an ambulance slower than this
 const FARES = { ACLS: [3500, 45], BLS: [1800, 30], PTA: [1200, 25] }; // base INR, INR per km
 
 const norm = (s) => String(s ?? "").trim().toLowerCase();
@@ -205,9 +206,15 @@ function eta(unit, pos) {
   return Math.round(DISPATCH_DELAY_MIN + km(unit, pos) * MIN_PER_KM);
 }
 
-export function fareRange(type, distanceKm) {
+// The exact fare the operator is asked to accept. Rounded to the nearest 100 rupees.
+export function exactFare(type, distanceKm) {
   const [base, perKm] = FARES[type];
-  const mid = Math.round((base + perKm * distanceKm) / 100) * 100;
+  return Math.round((base + perKm * distanceKm) / 100) * 100;
+}
+
+// The range quoted to the caller before an operator has accepted the exact fare.
+export function fareRange(type, distanceKm) {
+  const mid = exactFare(type, distanceKm);
   return `${mid - 100} to ${mid + 100}`;
 }
 
@@ -216,7 +223,7 @@ export function fareRange(type, distanceKm) {
 // for transfers it is the real pickup-to-destination distance.
 export function rankAmbulances(type, pos, city, tripKm = 8) {
   return AMBULANCES.filter((u) => u.type === type && u.city === city)
-    .map((u) => ({ ...u, eta_minutes: eta(u, pos), fare_range_inr: fareRange(type, km(u, pos) + tripKm) }))
+    .map((u) => ({ ...u, eta_minutes: eta(u, pos), fare_range_inr: fareRange(type, km(u, pos) + tripKm), fare_inr: exactFare(type, km(u, pos) + tripKm) }))
     .sort((a, b) => a.eta_minutes - b.eta_minutes);
 }
 
@@ -244,6 +251,11 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
     }
   }
 
+  // Hard cutoff on urgent calls: an ambulance that cannot arrive in time is not offered at all.
+  const urgent = t.priority !== "non_urgent";
+  if (urgent) candidates = candidates.filter((u) => u.eta_minutes <= URGENT_MAX_ETA_MIN);
+  const noneInTime = urgent && !candidates.length;
+
   const need = NEEDS[t.type];
   const hospitals = HOSPITALS.filter((h) => h.city === c && (!need || h.caps.includes(need)))
     .map((h) => ({ name: h.name, travel_minutes: Math.round(km(h, pos) * MIN_PER_KM) }))
@@ -256,8 +268,8 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
 
   const top = candidates[0];
   const advise = Boolean(
-    top && hospital && !isTransfer && t.priority !== "non_urgent" &&
-    top.eta_minutes - hospital.travel_minutes >= SELF_TRANSPORT_GAP_MIN
+    hospital && !isTransfer && urgent &&
+    (noneInTime || (top && top.eta_minutes - hospital.travel_minutes >= SELF_TRANSPORT_GAP_MIN))
   );
 
   return {
@@ -268,23 +280,24 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
     ambulance: top ? { provider: top.provider, eta_minutes: top.eta_minutes, fare_range_inr: top.fare_range_inr } : null,
     hospital,
     advise_self_transport: advise,
+    ...(urgent ? { max_eta_minutes: URGENT_MAX_ETA_MIN, no_ambulance_in_time: noneInTime } : {}),
     ...(isTransfer ? { destination_needed: !destination, trip_km: tripKm, trip_km_estimated: tripEstimated } : {}),
     // Not needed by the agent, used by the page.
     _emergency_type: t.type,
     _destination: dest,
     _position: pos,
-    _operators: operatorList(candidates, type, pos, c, tripKm),
+    _operators: operatorList(candidates, type, pos, c, tripKm, urgent),
   };
 }
 
 // Who to call, in order: the right vehicle type first, closest first. If there are fewer than three,
 // fill the list with the nearest BLS units, the helpline's fallback. Each entry keeps its own type and fare.
-export function operatorList(candidates, type, pos, city, tripKm, max = 3) {
+export function operatorList(candidates, type, pos, city, tripKm, urgent = true, max = 3) {
   const list = candidates.slice(0, max);
   if (list.length < max && type !== "BLS") {
     for (const u of rankAmbulances("BLS", pos, city, tripKm)) {
       if (list.length >= max) break;
-      if (u.eta_minutes <= NEARBY_MAX_ETA_MIN) list.push({ ...u, fallback: true });
+      if (!urgent || u.eta_minutes <= URGENT_MAX_ETA_MIN) list.push({ ...u, fallback: true });
     }
   }
   return list;

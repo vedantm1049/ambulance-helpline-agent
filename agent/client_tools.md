@@ -75,7 +75,7 @@ Returns:
 | `eta_minutes` | no | Minutes to reach the patient, as a number. Only when confirmed. |
 | `note` | no | One short sentence in English on what the operator said. |
 
-If the response is declined or unclear, the page moves to the next best operator and starts a new operator call. After three failures it stops and marks the case for a human.
+Confirmed means the operator accepted both the dispatch and the exact fare. On an urgent call, the page also treats a confirmation slower than 20 minutes as a decline. If the response is declined or unclear, the page moves to the next best operator and starts a new operator call. After three failures it stops and marks the case for a human.
 
 ## 6. handOffToDispatcher (2 parameters, both required, Wait for response OFF)
 

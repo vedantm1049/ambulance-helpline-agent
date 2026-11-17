@@ -1,7 +1,7 @@
-import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=9";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=9";
-import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=9";
-import { MockConversation } from "./mock.js?v=9";
+import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=10";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=10";
+import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=10";
+import { MockConversation } from "./mock.js?v=10";
 
 const MOCK = new URLSearchParams(location.search).has("mock");
 const $ = (id) => document.getElementById(id);
@@ -147,7 +147,7 @@ function renderAttempts() {
   for (const a of state.attempts) {
     list.append(el("div", { class: `attempt ${a.status}` },
       el("strong", {}, `${a.provider} · ${a.id}`),
-      el("span", {}, ` ${a.type}, about ${a.eta_minutes} min · `),
+      el("span", {}, ` ${a.type}, about ${a.eta_minutes} min, INR ${a.fare_inr} · `),
       el("em", {}, a.status === "calling" ? "calling…" : a.status), a.note ? el("p", {}, a.note) : ""));
   }
 }
@@ -311,6 +311,8 @@ function afterIntake() {
 
 function operators() { return state.help?._operators ?? []; }
 
+function currentOperator() { return state.confirmed ?? state.attempts[state.attempts.length - 1] ?? null; }
+
 function caseFacts() {
   const c = state.card;
   const loc = c.location_text ?? "";
@@ -322,12 +324,14 @@ function caseFacts() {
     place,
     urgent: state.help?.priority !== "non_urgent",
     destination: c.destination && String(state.help?._emergency_type ?? "").startsWith("Transfer") ? c.destination : null,
+    fare: currentOperator()?.fare_inr ?? null,
+    maxEta: state.help?.max_eta_minutes ?? null,
   };
 }
 
 function caseSummary() {
   const c = state.card, f = caseFacts();
-  return `${c.emergency_type ?? "Medical emergency"}, ${state.help?.priority ?? "unknown priority"}. ${f.type} ambulance needed. Pickup: ${f.place}.${f.destination ? ` Destination: ${f.destination}.` : ""} Patient awake: ${c.patient_awake ?? "unknown"}. Breathing normally: ${c.patient_breathing_normally ?? "unknown"}. Other ambulance already called: ${c.other_ambulance_called ?? "unknown"}.`;
+  return `${c.emergency_type ?? "Medical emergency"}, ${state.help?.priority ?? "unknown priority"}. ${f.type} ambulance needed. Pickup: ${f.place}.${f.destination ? ` Destination: ${f.destination}.` : ""} Patient awake: ${c.patient_awake ?? "unknown"}. Breathing normally: ${c.patient_breathing_normally ?? "unknown"}. Other ambulance already called: ${c.other_ambulance_called ?? "unknown"}.${f.fare ? ` Fixed fare: INR ${f.fare}, paid by the family after the trip, not negotiable.` : ""}${f.maxEta ? ` Maximum time to reach: ${f.maxEta} minutes.` : ""}`;
 }
 
 function nextOperator() {
@@ -362,7 +366,7 @@ async function simulateOperator(attempt, i) {
   const confirm = plan === "all_confirm" || (plan === "first_fails" && i > 0);
   if (confirm) {
     attempt.status = "confirmed";
-    attempt.note = `Simulated: "Yes, leaving now, ${attempt.eta_minutes} minutes."`;
+    attempt.note = `Simulated: "Yes, INR ${attempt.fare_inr} is fine, leaving now, ${attempt.eta_minutes} minutes."`;
     renderAttempts();
     return confirmAmbulance(attempt, attempt.eta_minutes);
   }
@@ -379,7 +383,13 @@ function afterLiveOperatorCall() {
   attempt.status = r.response;
   attempt.note = r.note || (r.response === "unclear" ? "Call ended without a clear answer." : "");
   renderAttempts();
-  if (r.response === "confirmed") return confirmAmbulance(attempt, r.eta_minutes ?? attempt.eta_minutes);
+  const maxEta = state.help?.max_eta_minutes;
+  if (r.response === "confirmed" && maxEta && (r.eta_minutes ?? 0) > maxEta) {
+    // Urgent call: an operator who needs longer than the cutoff counts as a decline.
+    attempt.status = "declined";
+    attempt.note = `Offered ${r.eta_minutes} minutes, over the ${maxEta} minute limit for urgent calls.`;
+    renderAttempts();
+  } else if (r.response === "confirmed") return confirmAmbulance(attempt, r.eta_minutes ?? attempt.eta_minutes);
   state.stage = "OPERATOR";
   nextOperator();
 }
@@ -390,7 +400,7 @@ function confirmAmbulance(op, eta) {
   renderMetrics();
   const c = state.card;
   addWhatsApp(op.provider, `New pickup. ${caseSummary()} Caller: ${DEMO_CALLER_NUMBER}.`);
-  addWhatsApp("caller", `Ambulance confirmed: ${op.provider}, ${op.type}. Vehicle ${state.confirmed.vehicle}, driver ${state.confirmed.driver}. Arriving in about ${eta} minutes. Fare range INR ${op.fare_range_inr}, paid to the operator after the trip.`);
+  addWhatsApp("caller", `Ambulance confirmed: ${op.provider}, ${op.type}. Vehicle ${state.confirmed.vehicle}, driver ${state.confirmed.driver}. Arriving in about ${eta} minutes. Fare INR ${op.fare_inr}, agreed with the operator, paid to the driver after the trip.`);
   goToCallback(true);
 }
 
@@ -404,13 +414,13 @@ function goToCallback(confirmed) {
   setStepper();
   const h = state.help?.hospital;
   const result = confirmed
-    ? `Ambulance confirmed. Operator: ${state.confirmed.provider}. Type: ${state.confirmed.type}. Arriving in about ${state.confirmed.eta_minutes} minutes. Vehicle and driver details sent on WhatsApp.`
+    ? `Ambulance confirmed. Operator: ${state.confirmed.provider}. Type: ${state.confirmed.type}. Arriving in about ${state.confirmed.eta_minutes} minutes. Fare agreed with the operator: INR ${state.confirmed.fare_inr}, paid to the driver after the trip. Vehicle and driver details sent on WhatsApp.`
     : `No ambulance could be confirmed after ${state.attempts.length} operator calls. Nearest suitable hospital: ${h ? `${h.name}, about ${h.travel_minutes} minutes by road` : "unknown"}.`;
   setStatus("Incoming callback for the caller.", "ring");
   setAction("Answer the callback as the caller", () =>
     startSession({
       stage: "CALLBACK", lang,
-      firstLine: callbackOpening(lang, confirmed, state.confirmed?.eta_minutes),
+      firstLine: callbackOpening(lang, confirmed, state.confirmed?.eta_minutes, state.confirmed?.fare_inr),
       extra: { case_summary: caseSummary(), booking_result: result },
     }), "ring");
 }

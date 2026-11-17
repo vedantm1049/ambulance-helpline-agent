@@ -52,8 +52,26 @@ test("self-transport rule fires only in the scenario area", () => {
     const r = call(a.name, "Chest pain");
     assert.equal(r.advise_self_transport, a.name === SCENARIO_AREAS.selfTransport, a.name);
   }
+  // Manesar's nearest ACLS is over 20 minutes away, so it is not offered at all on an urgent call.
   const r = call(SCENARIO_AREAS.selfTransport, "Road accident");
-  assert.ok(r.ambulance.eta_minutes - r.hospital.travel_minutes >= 5);
+  assert.equal(r.ambulance, null);
+  assert.equal(r.no_ambulance_in_time, true);
+});
+
+test("urgent and critical calls never offer an ambulance slower than 20 minutes", () => {
+  for (const a of AREAS) for (const e of ["Chest pain", "Unconscious or unresponsive", "Road accident"]) {
+    const r = call(a.name, e);
+    if (r.ambulance) assert.ok(r.ambulance.eta_minutes <= 20, a.name);
+    assert.ok(r._operators.every((o) => o.eta_minutes <= 20), a.name);
+  }
+});
+
+test("each operator carries an exact fare inside the quoted range", () => {
+  const r = call("Sector 47", "Chest pain");
+  for (const o of r._operators) {
+    const [lo, hi] = o.fare_range_inr.split(" to ").map(Number);
+    assert.equal(o.fare_inr, (lo + hi) / 2);
+  }
 });
 
 test("self-transport is never advised for non-urgent calls or transfers", () => {
