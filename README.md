@@ -95,8 +95,8 @@ Calls run on the live demo. Results are recorded as they happened, including fai
 |---|---|---|---|---|---|---|
 | 1 | | Chest pain, Sector 47, clear answers | Hindi | | | |
 | 2 | | Collapsed, not breathing, panicked caller, asks about aspirin | English | | | |
-| 3 | | Road accident, Koramangala, caller speaks only Kannada | Kannada | | | |
-| 4 | | Vague location, spelled out, switches language | Hindi then English | | | |
+| 3 | 17 Nov 2026 | Road accident, Koramangala, caller speaks only Kannada | Kannada | Pass, with change | Handed off correctly. It did not first ask whether the caller could speak Hindi or English. | Agent now asks once in English and Hindi before handing off. |
+| 4 | 17 Nov 2026 | Vague location, spelled out, switches language | Hindi then English | Pass, with change | Vague location and the language switch were handled well. The male voice used a feminine Hindi verb ("kar rahi hoon"). | Prompt now requires masculine Hindi forms for the agent. |
 | 5 | | Live operator says "we will try", second confirms | Hindi | | | |
 | 6 | | Manesar, caller chooses own vehicle | Any | | | |
 
