@@ -16,8 +16,8 @@ This prototype rebuilds that flow on ElevenAgents to see how much of it a voice 
 ## How a case runs
 
 1. **Intake call.** You play the caller. The agent opens in English and follows you into Hindi, including mixed Hindi and English. It asks for location first, by voice: area, city and nearest landmark, spelled out if unclear, read back once. It does not ask about the emergency until the location is confirmed. It then asks what happened, whether the patient is awake, and whether they are breathing normally. It never asks for the phone number, which comes from caller ID.
-2. **Nearest help.** The page, not the AI, decides priority, ambulance type, the nearest operator and the nearest suitable hospital. If the hospital is at least five minutes closer than the ambulance on a serious call, the agent suggests a cab. The caller says yes or no.
-3. **Operator call.** The agent calls the nearest operator and asks if they can dispatch now. "We will try" counts as no. It moves to the next operator, up to three. You can play the operator yourself or let the page simulate them.
+2. **Nearest help.** The page, not the AI, decides priority, ambulance type, the nearest operator and the nearest suitable hospital. For a hospital transfer the agent asks for the destination, and the fare covers the trip to it. If the hospital is at least five minutes closer than the ambulance on a serious call, the agent suggests a cab. The caller says yes or no.
+3. **Operator call.** The agent calls the nearest operator and asks if they can dispatch now, in Hindi for Delhi NCR and in English for Bangalore. "We will try" counts as no. It moves to the next operator, up to three. You can play the operator yourself or let the page simulate them.
 4. **Callback.** The agent calls the caller back with the confirmed arrival time, says the vehicle details are on WhatsApp, then collects the patient's name and age and the caller's name.
 
 Anything the agent cannot handle goes to a human dispatcher: unclear location, unsupported language, outside the service area, cost refusal, no ambulance confirmed.
@@ -97,7 +97,7 @@ Calls run on the live demo. Results are recorded as they happened, including fai
 | 2 | | Collapsed, not breathing, panicked caller, asks about aspirin | English | | | |
 | 3 | 17 Nov 2026 | Road accident, Koramangala, caller speaks only Kannada | Kannada | Pass, with change | Handed off correctly. It did not first ask whether the caller could speak Hindi or English. | Agent now asks once in English and Hindi before handing off. |
 | 4 | 17 Nov 2026 | Vague location, spelled out, switches language | Hindi then English | Pass, with change | Vague location and the language switch were handled well. The male voice used a feminine Hindi verb ("kar rahi hoon"). | Prompt now requires masculine Hindi forms for the agent. |
-| 5 | | Live operator says "we will try", second confirms | Hindi | | | |
+| 5 | 17 Nov 2026 | Hospital transfer, Indraprastha Apollo to CK Birla. Live operator says "30 minutes, we will try" | English, operator Hindi | Pass, with changes | Operator's "we will try" was correctly treated as a decline. Four faults: the agent asked for a landmark after a hospital name; the destination was not recorded, so the fare ignored it; the operator call opened in English for Delhi and said "urgent" for a non-urgent transfer; the operator's switch to Hindi overwrote the caller's language, so the callback came in Hindi. | Named places count as landmarks. Transfers ask for the destination and price the trip. Operator calls default to Hindi in Delhi NCR and English in Bangalore. The operator call can no longer write to the caller's card, and the caller's language is locked at the end of intake. |
 | 6 | | Manesar, caller chooses own vehicle | Any | | | |
 
 ## Known limits

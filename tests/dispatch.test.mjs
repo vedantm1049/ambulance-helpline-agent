@@ -87,3 +87,28 @@ test("chest pain goes to a cardiac-capable hospital", () => {
   const r = call("Sohna Road", "Chest pain");
   assert.notEqual(r.hospital.name, "Sohna Road Trauma Hospital");
 });
+
+test("transfer fare grows with distance to the destination", async () => {
+  const { findNearestHelp } = await import("../js/dispatch.js");
+  const base = { city: "Delhi", emergency_type: "Transfer from hospital, stable patient", patient_awake: "yes", patient_breathing_normally: "yes" };
+  const near = findNearestHelp({ ...base, destination: "Hospital in Saket, Delhi" }, { locationText: "Lajpat Nagar" });
+  const far = findNearestHelp({ ...base, destination: "Hospital in Sector 47, Gurugram" }, { locationText: "Lajpat Nagar" });
+  const low = (r) => Number(r.ambulance.fare_range_inr.split(" ")[0]);
+  assert.ok(low(far) > low(near), `${low(far)} should exceed ${low(near)}`);
+  assert.equal(far.hospital.name, "Hospital in Sector 47, Gurugram");
+  assert.ok(far.trip_km > near.trip_km);
+  assert.equal(far.advise_self_transport, false);
+});
+
+test("transfer without a destination says so", async () => {
+  const { findNearestHelp } = await import("../js/dispatch.js");
+  const r = findNearestHelp({ city: "Delhi", emergency_type: "Transfer from hospital, stable patient", patient_awake: "yes", patient_breathing_normally: "yes" }, { locationText: "Saket" });
+  assert.equal(r.destination_needed, true);
+});
+
+test("operator language follows the city", async () => {
+  const { operatorLanguageFor } = await import("../js/lines.js");
+  assert.equal(operatorLanguageFor("Delhi"), "Hindi");
+  assert.equal(operatorLanguageFor("Gurugram"), "Hindi");
+  assert.equal(operatorLanguageFor("Bangalore"), "English");
+});

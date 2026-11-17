@@ -179,6 +179,18 @@ export function resolvePosition({ city, sharedPosition, locationText }) {
   return null;
 }
 
+// Position of a place named on the call (a destination hospital, say). Matches a demo area name,
+// then a city name. Returns null if neither is recognised.
+export function resolvePlace(text) {
+  const t = norm(text);
+  if (!t) return null;
+  const area = AREAS.find((a) => t.includes(norm(a.name)));
+  if (area) return { lat: area.lat, lng: area.lng, area: area.name, city: area.city, estimated: false };
+  const c = normaliseCity(text);
+  const first = c && c !== "Other" ? AREAS.find((a) => a.city === c) : null;
+  return first ? { lat: first.lat, lng: first.lng, area: `${c} (city centre estimate)`, city: c, estimated: true } : null;
+}
+
 export function nearestArea(lat, lng, maxKm = 40) {
   let best = null;
   for (const a of AREAS) {
@@ -192,32 +204,37 @@ function eta(unit, pos) {
   return Math.round(DISPATCH_DELAY_MIN + km(unit, pos) * MIN_PER_KM);
 }
 
-function fareRange(type, distanceKm) {
+export function fareRange(type, distanceKm) {
   const [base, perKm] = FARES[type];
   const mid = Math.round((base + perKm * distanceKm) / 100) * 100;
   return `${mid - 100} to ${mid + 100}`;
 }
 
 // Ambulances of one type, closest first.
-export function rankAmbulances(type, pos, city) {
+// tripKm: distance the patient travels. For emergencies an 8 km average run to hospital is assumed;
+// for transfers it is the real pickup-to-destination distance.
+export function rankAmbulances(type, pos, city, tripKm = 8) {
   return AMBULANCES.filter((u) => u.type === type && u.city === city)
-    .map((u) => ({ ...u, eta_minutes: eta(u, pos), fare_range_inr: fareRange(type, km(u, pos) + 8) }))
+    .map((u) => ({ ...u, eta_minutes: eta(u, pos), fare_range_inr: fareRange(type, km(u, pos) + tripKm) }))
     .sort((a, b) => a.eta_minutes - b.eta_minutes);
 }
 
-export function findNearestHelp({ city, emergency_type, patient_awake, patient_breathing_normally }, ctx = {}) {
+export function findNearestHelp({ city, emergency_type, patient_awake, patient_breathing_normally, destination }, ctx = {}) {
   const c = normaliseCity(city);
   if (!c || c === "Other") {
     return { error: "outside_service_area", message: "This city is outside the service area. Tell the caller to call 112." };
   }
   const pos = resolvePosition({ city: c, sharedPosition: ctx.sharedPosition, locationText: ctx.locationText });
   const t = triage({ emergency_type, patient_awake, patient_breathing_normally });
+  const isTransfer = t.type.startsWith("Transfer from hospital");
+  const dest = isTransfer ? resolvePlace(destination) : null;
+  const tripKm = dest ? Math.round(km(pos, dest) * 1.3) : 8; // 1.3: roads are longer than straight lines
 
-  let candidates = rankAmbulances(t.required, pos, c);
+  let candidates = rankAmbulances(t.required, pos, c, tripKm);
   let fallback = false;
   let type = t.required;
   if (!candidates.length || candidates[0].eta_minutes > NEARBY_MAX_ETA_MIN) {
-    const bls = rankAmbulances("BLS", pos, c);
+    const bls = rankAmbulances("BLS", pos, c, tripKm);
     if (t.required !== "BLS" && bls.length && (!candidates.length || bls[0].eta_minutes < candidates[0].eta_minutes)) {
       candidates = bls; fallback = true; type = "BLS";
     }
@@ -227,10 +244,13 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
   const hospitals = HOSPITALS.filter((h) => h.city === c && (!need || h.caps.includes(need)))
     .map((h) => ({ name: h.name, travel_minutes: Math.round(km(h, pos) * MIN_PER_KM) }))
     .sort((a, b) => a.travel_minutes - b.travel_minutes);
-  const hospital = hospitals[0] ?? null;
+  let hospital = hospitals[0] ?? null;
+  if (isTransfer && destination) {
+    // The family chooses the destination, so it replaces the nearest-hospital suggestion.
+    hospital = { name: String(destination), travel_minutes: dest ? Math.round(tripKm * MIN_PER_KM) : null };
+  }
 
   const top = candidates[0];
-  const isTransfer = t.type.startsWith("Transfer from hospital");
   const advise = Boolean(
     top && hospital && !isTransfer && t.priority !== "non_urgent" &&
     top.eta_minutes - hospital.travel_minutes >= SELF_TRANSPORT_GAP_MIN
@@ -244,8 +264,10 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
     ambulance: top ? { provider: top.provider, eta_minutes: top.eta_minutes, fare_range_inr: top.fare_range_inr } : null,
     hospital,
     advise_self_transport: advise,
+    ...(isTransfer ? { destination_needed: !destination, trip_km: dest ? tripKm : null } : {}),
     // Not needed by the agent, used by the page.
     _emergency_type: t.type,
+    _destination: dest,
     _position: pos,
     _operators: candidates.slice(0, 3),
   };

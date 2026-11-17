@@ -4,11 +4,11 @@ A client tool is a function that runs on the demo web page, not on a server. The
 
 Create each one in the dashboard: Add tool, Tool Type "Client". Names are case-sensitive and must match exactly. Every parameter is Data Type String.
 
-There are five tools and 23 parameters in total. An earlier sixth tool, `requestLocationShare`, was removed after the first test call: location is now taken by voice only.
+There are five tools and 25 parameters in total. An earlier sixth tool, `requestLocationShare`, was removed after the first test call: location is now taken by voice only.
 
 The "Returns" notes are for the page code, not the dashboard. There is no field for them. Skip them when you set up each tool.
 
-## 1. updateDispatchCard (13 parameters, none required, Wait for response OFF)
+## 1. updateDispatchCard (14 parameters, none required, Wait for response OFF)
 
 **Description:** Update the dispatch card on the dispatcher's screen. Call this every time the other person gives or corrects a detail. Send only the fields that changed.
 
@@ -18,6 +18,7 @@ The "Returns" notes are for the page code, not the dashboard. There is no field 
 | `location_text` | Location as confirmed with the caller: house or society, street, area. |
 | `landmark` | Nearest landmark the caller named. |
 | `city` | One of: Gurugram, Delhi, Noida, Bangalore, Other. |
+| `destination` | Hospital transfers only: the destination hospital name, area and city. |
 | `emergency_type` | Exactly one value from the emergency types list in the system prompt. |
 | `what_happened` | One short sentence in English describing what the caller reported. |
 | `patient_awake` | yes, no or unknown. |
@@ -28,7 +29,7 @@ The "Returns" notes are for the page code, not the dashboard. There is no field 
 | `patient_gender` | male, female or other, only if the caller mentions it. |
 | `caller_name` | Name of the caller. |
 
-## 3. findNearestHelp (4 parameters, all required, Wait for response ON)
+## 3. findNearestHelp (5 parameters, first 4 required, Wait for response ON)
 
 **Description:** Get the priority, ambulance type, nearest ambulance and nearest suitable hospital for this call. Call only after the location is confirmed and emergency type, awake and breathing are known. Call again if any of them change.
 
@@ -38,6 +39,7 @@ The "Returns" notes are for the page code, not the dashboard. There is no field 
 | `emergency_type` | Exactly one value from the emergency types list. |
 | `patient_awake` | yes, no or unknown. |
 | `patient_breathing_normally` | yes, no or unknown. |
+| `destination` | Optional. Hospital transfers only: destination hospital, area and city. The fare covers the trip to it. |
 
 Returns:
 

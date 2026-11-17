@@ -1,7 +1,7 @@
-import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js";
-import { LANG_CODE, intakeOpening, operatorOpening, callbackOpening } from "./lines.js";
-import { MockConversation } from "./mock.js";
+import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=8";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=8";
+import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=8";
+import { MockConversation } from "./mock.js?v=8";
 
 const MOCK = new URLSearchParams(location.search).has("mock");
 const $ = (id) => document.getElementById(id);
@@ -104,7 +104,7 @@ function setAction(label, handler, kind = "primary") {
 
 const CARD_FIELDS = [
   ["priority", "Priority"], ["language", "Language"], ["phone", "Phone (caller ID)"],
-  ["location_text", "Location"], ["landmark", "Landmark"], ["city", "City"],
+  ["location_text", "Location"], ["landmark", "Landmark"], ["city", "City"], ["destination", "Destination (transfers)"],
   ["emergency_type", "Emergency type"], ["what_happened", "What happened"],
   ["patient_awake", "Awake"], ["patient_breathing_normally", "Breathing normally"],
   ["other_ambulance_called", "Other ambulance called"], ["patient_name", "Patient name"],
@@ -131,7 +131,8 @@ function renderHelp() {
     ["Ambulance offered", `${TYPE_NAME[h.ambulance_type]}${h.fallback_used ? " (fallback, right type not nearby)" : ""}`],
     ["Nearest operator", h.ambulance ? `${h.ambulance.provider}, about ${h.ambulance.eta_minutes} min` : "none"],
     ["Fare range", h.ambulance ? `INR ${h.ambulance.fare_range_inr}` : "–"],
-    ["Nearest suitable hospital", h.hospital ? `${h.hospital.name}, ${h.hospital.travel_minutes} min by road` : "none"],
+    [h._destination || h.destination_needed !== undefined ? "Destination" : "Nearest suitable hospital",
+      h.hospital ? `${h.hospital.name}${h.hospital.travel_minutes != null ? `, ${h.hospital.travel_minutes} min by road` : ""}${h._destination?.estimated ? " (estimated from city centre)" : ""}` : (h.destination_needed ? "not given yet" : "none")],
     ["Position used", `${h._position?.area ?? "?"} (${h._position?.source ?? "?"})`],
   ];
   box.innerHTML = "";
@@ -172,6 +173,11 @@ function locationText() {
 
 const tools = {
   updateDispatchCard: (p) => {
+    if (state.stage === "OPERATOR") {
+      // The operator is not the caller. Nothing they say belongs on the caller's card.
+      logTool("updateDispatchCard", p, "ignored on the operator call");
+      return "ignored";
+    }
     const changed = [];
     for (const [k, v] of Object.entries(p ?? {})) {
       if (v === undefined || v === null || v === "") continue;
@@ -288,6 +294,8 @@ function onCallEnded(stage, details) {
 }
 
 function afterIntake() {
+  // Freeze the caller's language now, so nothing on the operator call can change it.
+  state.callerLanguage = callerLang();
   if (state.handoff) return finish("Case is with a human dispatcher.");
   if (!state.booking) return finish("Call ended before a decision. A real helpline would call back.");
   if (state.booking.choice === "own_vehicle") {
@@ -308,12 +316,18 @@ function caseFacts() {
   const loc = c.location_text ?? "";
   const has = (x) => x && loc.toLowerCase().includes(String(x).toLowerCase());
   const place = [loc, has(c.landmark) ? "" : c.landmark ? `near ${c.landmark}` : "", has(c.city) ? "" : c.city].filter(Boolean).join(", ") || state.help?._position?.area || "the caller's location";
-  return { type: state.help?.ambulance_type ?? "ACLS", emergency: (c.emergency_type ?? "medical emergency").toLowerCase(), place };
+  return {
+    type: state.help?.ambulance_type ?? "ACLS",
+    emergency: (c.emergency_type ?? "medical emergency").toLowerCase(),
+    place,
+    urgent: state.help?.priority !== "non_urgent",
+    destination: c.destination && String(state.help?._emergency_type ?? "").startsWith("Transfer") ? c.destination : null,
+  };
 }
 
 function caseSummary() {
   const c = state.card, f = caseFacts();
-  return `${c.emergency_type ?? "Medical emergency"}, ${state.help?.priority ?? "unknown priority"}. ${f.type} ambulance needed. Pickup: ${f.place}. Patient awake: ${c.patient_awake ?? "unknown"}. Breathing normally: ${c.patient_breathing_normally ?? "unknown"}. Other ambulance already called: ${c.other_ambulance_called ?? "unknown"}.`;
+  return `${c.emergency_type ?? "Medical emergency"}, ${state.help?.priority ?? "unknown priority"}. ${f.type} ambulance needed. Pickup: ${f.place}.${f.destination ? ` Destination: ${f.destination}.` : ""} Patient awake: ${c.patient_awake ?? "unknown"}. Breathing normally: ${c.patient_breathing_normally ?? "unknown"}. Other ambulance already called: ${c.other_ambulance_called ?? "unknown"}.`;
 }
 
 function nextOperator() {
@@ -327,7 +341,8 @@ function nextOperator() {
   if ($("opMode").value === "live") {
     setStatus(`Your turn: you are now ${op.provider}, the ambulance operator.`, "busy");
     setAction(`Pick up as ${op.provider}`, () => {
-      const lang = $("opLang").value;
+      const choice = $("opLang").value;
+      const lang = choice === "auto" ? operatorLanguageFor(state.help?._position?.city ?? state.card.city) : choice;
       startSession({
         stage: "OPERATOR", lang,
         firstLine: operatorOpening(lang, caseFacts()),
@@ -382,7 +397,7 @@ function confirmAmbulance(op, eta) {
 // ---------- callback stage ----------
 
 function goToCallback(confirmed) {
-  const lang = callerLang();
+  const lang = state.callerLanguage ?? callerLang();
   state.card.language = lang;
   renderCard(["language"]);
   state.stage = "CALLBACK";
@@ -408,7 +423,7 @@ function finish(note) {
 }
 
 function resetCase() {
-  Object.assign(state, { stage: "IDLE", card: {}, callerLines: [], sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null });
+  Object.assign(state, { stage: "IDLE", card: {}, callerLines: [], callerLanguage: null, sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null });
   $("transcript").innerHTML = "";
   $("toolLog").innerHTML = "";
   $("whatsapp").innerHTML = '<p class="muted">Messages to the operator and the caller appear here.</p>';
