@@ -91,7 +91,7 @@ node --test tests/dispatch.test.mjs
 
 ## Test log
 
-Every call run on the live demo, in order, including failures. Thirteen test cases, 22 conversations in all: most cases are an intake call plus operator and callback calls. One 3-second call that was hung up before anyone spoke is left out.
+Every call run on the live demo, in order, including failures. Fourteen test cases, 24 conversations in all: most cases are an intake call plus operator and callback calls. One 3-second call that was hung up before anyone spoke is left out.
 
 | # | Date | Scenario | Language | Result | What happened | Change made |
 |---|---|---|---|---|---|---|
@@ -108,6 +108,7 @@ Every call run on the live demo, in order, including failures. Thirteen test cas
 | 11 | 17 Nov 2026, 16:24 | Manesar, caller has trouble breathing, names several areas, cannot give a landmark | English | Fail, fixed | The agent asked which area, which was right. Then it asked for a landmark twice, asked the caller to spell Manesar, and handed off for "Location not confirmed" though area and city were clear. The cutoff and cab advice were never reached. | A landmark is asked for once and is optional. A confirmed area and city are enough to continue. Spelling is only for words the agent did not catch. |
 | 12 | 17 Nov 2026, 16:40 | Manesar, chest pain, not breathing normally, no landmark | English | Pass | Landmark asked once, then accepted as unknown. No ACLS within 20 minutes, so no ambulance was offered. The agent named Manesar Community Hospital, 2 minutes away, and the caller chose to go by own vehicle. | None |
 | 13 | 20 Nov 2026, 14:38 | Retest of test 8: Indraprastha Apollo, Delhi to Bhatia Hospital, Gurugram. Simulated operators, first does not pick up | English | Pass, with change | Booked as a Delhi NCR transfer, no hand-off. PTA quoted at 3 minutes, priced on the 24 km trip. The first operator did not pick up, so the next PTA confirmed at 23 minutes and INR 2,000. The callback gave 23 minutes with no reason, and the caller asked why it was not 3. The caller also declined to give names, which the agent accepted. | When the confirmed ambulance is not the one quoted, the callback now says the nearest one was not available and the next one was booked, in Hindi and English. |
+| 14 | 20 Nov 2026, 14:50 | Bystander in Cubbon Park sees a stranger collapse, not awake, unsure about breathing. Reasoning set to low | English | Pass, with change | Replies started in 0.4 to 1.2 seconds, down from about 2.3 in test 13. Critical triage, ACLS 5 minutes away. The first operator did not pick up, and the callback explained the switch, as fixed in test 13. When the caller did not know the patient's name, the agent asked for sex and rough age instead. One gap: the intake quoted INR 3,800 to 4,000, but the second, farther ambulance cost INR 4,100, outside the quoted range. | The callback now says the next ambulance is "from further away", so a higher fare and longer time have a reason. |
 
 ## Known limits
 

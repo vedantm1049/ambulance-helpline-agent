@@ -30,10 +30,10 @@ export function operatorOpening(lang, c) {
 export function callbackOpening(lang, confirmed, eta, fare, changed = false) {
   if (confirmed) {
     if (lang === "Hindi") {
-      const why = changed ? " सबसे नज़दीकी एम्बुलेंस उपलब्ध नहीं थी, इसलिए अगली एम्बुलेंस बुक की है।" : "";
+      const why = changed ? " सबसे नज़दीकी एम्बुलेंस उपलब्ध नहीं थी, इसलिए थोड़ी दूर की अगली एम्बुलेंस बुक की है।" : "";
       return `एम्बुलेंस हेल्पलाइन से कॉल बैक है।${why} आपकी एम्बुलेंस कन्फर्म हो गई है, लगभग ${eta} मिनट में पहुँचेगी। किराया ${fare} रुपये है, ट्रिप के बाद ड्राइवर को देना है।`;
     }
-    const why = changed ? " The nearest ambulance was not available, so we booked the next one." : "";
+    const why = changed ? " The nearest ambulance was not available, so we booked the next one, from further away." : "";
     return `Ambulance Helpline calling back.${why} Your ambulance is confirmed and should reach you in about ${eta} minutes. The fare is ${fare} rupees, paid to the driver after the trip.`;
   }
   if (lang === "Hindi") return "एम्बुलेंस हेल्पलाइन से कॉल बैक है। माफ़ कीजिए, अभी तक कोई एम्बुलेंस कन्फर्म नहीं हुई। हमारे डिस्पैचर अब आपका केस खुद संभाल रहे हैं।";
