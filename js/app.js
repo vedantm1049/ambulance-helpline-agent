@@ -1,7 +1,7 @@
-import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=13";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=13";
-import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=13";
-import { MockConversation } from "./mock.js?v=13";
+import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=14";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=14";
+import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=14";
+import { MockConversation } from "./mock.js?v=14";
 
 const MOCK = new URLSearchParams(location.search).has("mock");
 const $ = (id) => document.getElementById(id);
@@ -23,9 +23,16 @@ const state = {
   t0: null,
   tBooked: null,
   tConfirmed: null,
+  background: false,       // operators are being called during the intake call
+  agentMode: "listening",
+  pendingUpdate: null,     // dispatch update waiting for the agent to stop speaking
 };
 
 // ---------- small helpers ----------
+
+// "background": a colleague calls the operators while the agent stays on the line with the caller.
+// "callback": the original flow, with separate operator and callback calls (needed to play the operator live).
+const dispatchMode = () => (MOCK || $("opMode").value === "live" ? "callback" : "background");
 
 const secs = (t) => Math.round((t - state.t0) / 1000);
 const fmtSecs = (s) => (s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -208,6 +215,11 @@ const tools = {
     state.tBooked = Date.now();
     renderMetrics();
     logTool("bookAmbulance", p, "Booking recorded.");
+    if (choice === "ambulance" && dispatchMode() === "background" && !state.background) {
+      state.background = true;
+      state.callerLanguage = callerLang();
+      setTimeout(nextOperator, 1500); // the colleague starts dialling once the agent has said so
+    }
     return "Booking recorded.";
   },
 
@@ -244,6 +256,7 @@ async function startSession(args) {
     case_summary: "none yet",
     operator_name: "none",
     booking_result: "none yet",
+    dispatch_mode: dispatchMode(),
     ...extra,
   };
   setStatus("Connecting…", "busy");
@@ -253,8 +266,15 @@ async function startSession(args) {
     onConnect: () => { if (!state.t0) state.t0 = Date.now(); setStatus("Connected. Speak when the agent finishes.", "live"); },
     onDisconnect: (d) => { state.conversation = null; onCallEnded(stage, d); },
     onError: (msg) => { addTranscript("agent", `[error] ${msg}`); },
-    onMessage: (m) => addTranscript(m.role === "agent" || m.source === "ai" ? "agent" : "user", m.message),
-    onModeChange: ({ mode }) => setStatus(mode === "speaking" ? "Agent speaking…" : "Listening…", "live"),
+    onMessage: (m) => {
+      if (String(m.message ?? "").startsWith("[Dispatch update")) return; // injected by the page, not said by the caller
+      addTranscript(m.role === "agent" || m.source === "ai" ? "agent" : "user", m.message);
+    },
+    onModeChange: ({ mode }) => {
+      state.agentMode = mode;
+      setStatus(mode === "speaking" ? "Agent speaking…" : "Listening…", "live");
+      if (mode !== "speaking") flushUpdate();
+    },
   };
   const base = { agentId: AGENT_ID, connectionType: "webrtc", dynamicVariables, clientTools: tools, stripAudioTags: true, ...callbacks };
 
@@ -302,9 +322,51 @@ function afterIntake() {
     const h = state.help?.hospital;
     return finish(`Caller is going by own vehicle${h ? ` to ${h.name}, about ${h.travel_minutes} min` : ""}. No ambulance booked.`);
   }
+  if (state.background) {
+    // The intake call ended before the colleague finished. Fall back to calling the caller back.
+    if (state.result) return state.result.announced ? finish("Ambulance confirmed and told to the caller on the same call.") : goToCallback(state.result.confirmed);
+    state.lateCallback = true;
+    setStatus("Caller hung up. The colleague is still calling operators; a callback will follow.", "busy");
+    return;
+  }
   state.stage = "OPERATOR";
   setStepper();
   nextOperator();
+}
+
+// ---------- background dispatch: tell the agent on the live call ----------
+
+function dispatchUpdate(confirmed) {
+  const h = state.help?.hospital;
+  if (confirmed) {
+    const c = state.confirmed;
+    return `[Dispatch update from your colleague, not from the caller] Ambulance confirmed. ${c.type} from ${c.provider}, arriving in about ${c.eta_minutes} minutes. Exact fare agreed: ${c.fare_inr} rupees, paid to the driver after the trip. Vehicle and driver details are on WhatsApp.${changedOperator() ? ` The ambulance first quoted (about ${state.attempts[0].eta_minutes} minutes) did not answer, so this is the next one, from further away.` : ""} Tell the caller now.`;
+  }
+  return `[Dispatch update from your colleague, not from the caller] No ambulance could be confirmed after ${state.attempts.length} operator calls. Nearest suitable hospital: ${h ? `${h.name}, about ${h.travel_minutes} minutes by road` : "unknown"}. Tell the caller now.`;
+}
+
+function backgroundDone(confirmed) {
+  state.result = { confirmed, announced: false };
+  const lang = state.callerLanguage ?? callerLang();
+  state.card.language = lang;
+  renderCard(["language"]);
+  if (!state.conversation || state.stage !== "INTAKE") {
+    // The caller is no longer on the line: use the callback.
+    if (state.lateCallback || state.stage === "DONE" || state.stage === "INTAKE") return goToCallback(confirmed);
+    return;
+  }
+  state.pendingUpdate = dispatchUpdate(confirmed);
+  setStatus("Colleague has an answer. The agent will tell the caller at the next pause.", "live");
+  flushUpdate();
+}
+
+function flushUpdate() {
+  if (!state.pendingUpdate || !state.conversation || state.agentMode === "speaking") return;
+  const msg = state.pendingUpdate;
+  state.pendingUpdate = null;
+  state.result.announced = true;
+  try { state.conversation.sendUserMessage(msg); } catch { state.result.announced = false; }
+  logTool("dispatch update", {}, msg.replace(/^\[[^\]]*\] /, ""));
 }
 
 // ---------- operator stage ----------
@@ -343,7 +405,7 @@ function caseSummary() {
 function nextOperator() {
   const i = state.attempts.length;
   const op = operators()[i];
-  if (!op || i >= MAX_OPERATOR_ATTEMPTS) return goToCallback(false);
+  if (!op || i >= MAX_OPERATOR_ATTEMPTS) return state.background ? backgroundDone(false) : goToCallback(false);
   const attempt = { ...op, status: "calling", note: "" };
   state.attempts.push(attempt);
   renderAttempts();
@@ -365,9 +427,11 @@ function nextOperator() {
 }
 
 async function simulateOperator(attempt, i) {
-  setAction("Confirming with operators…", null, "ghost");
-  setStatus(`Calling ${attempt.provider}…`, "busy");
-  await wait(1800);
+  if (!state.background) {
+    setAction("Confirming with operators…", null, "ghost");
+    setStatus(`Calling ${attempt.provider}…`, "busy");
+  }
+  await wait(state.background ? 7000 : 1800); // background: a real call takes time, and the agent is busy taking details
   const plan = $("opSim").value;
   const confirm = plan === "all_confirm" || (plan === "first_fails" && i > 0);
   if (confirm) {
@@ -379,7 +443,7 @@ async function simulateOperator(attempt, i) {
   attempt.status = i === 0 && plan === "first_fails" ? "no answer" : "declined";
   attempt.note = attempt.status === "no answer" ? "Simulated: did not pick up after 30 seconds." : "Simulated: no vehicle free.";
   renderAttempts();
-  await wait(700);
+  await wait(state.background ? 1500 : 700);
   nextOperator();
 }
 
@@ -407,6 +471,7 @@ function confirmAmbulance(op, eta) {
   const c = state.card;
   addWhatsApp(op.provider, `New pickup. ${caseSummary()} Caller: ${DEMO_CALLER_NUMBER}.`);
   addWhatsApp("caller", `Ambulance confirmed: ${op.provider}, ${op.type}. Vehicle ${state.confirmed.vehicle}, driver ${state.confirmed.driver}. Arriving in about ${eta} minutes. Fare INR ${op.fare_inr}, agreed with the operator, paid to the driver after the trip.`);
+  if (state.background) return backgroundDone(true);
   goToCallback(true);
 }
 
@@ -439,7 +504,7 @@ function finish(note) {
 }
 
 function resetCase() {
-  Object.assign(state, { stage: "IDLE", card: {}, callerLines: [], callerLanguage: null, sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null });
+  Object.assign(state, { stage: "IDLE", card: {}, callerLines: [], callerLanguage: null, sharedPosition: null, help: null, booking: null, handoff: null, attempts: [], report: null, confirmed: null, t0: null, tBooked: null, tConfirmed: null, background: false, agentMode: "listening", pendingUpdate: null, result: null, lateCallback: false });
   $("transcript").innerHTML = "";
   $("toolLog").innerHTML = "";
   $("whatsapp").innerHTML = '<p class="muted">Messages to the operator and the caller appear here.</p>';

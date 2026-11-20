@@ -87,6 +87,8 @@ export class MockConversation {
     this.o.onDisconnect?.({ reason: "agent" });
   }
 
+  sendUserMessage() {}
+
   async endSession() {
     this.stopped = true;
     this.o.onDisconnect?.({ reason: "user" });
