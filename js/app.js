@@ -1,7 +1,7 @@
-import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=11";
-import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=11";
-import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=11";
-import { MockConversation } from "./mock.js?v=11";
+import { AGENT_ID, DEMO_CALLER_NUMBER, MAX_OPERATOR_ATTEMPTS } from "./config.js?v=12";
+import { AREAS, SCENARIO_AREAS, findNearestHelp, forAgent, normaliseCity, matchEmergencyType } from "./dispatch.js?v=12";
+import { LANG_CODE, intakeOpening, operatorOpening, operatorLanguageFor, callbackOpening } from "./lines.js?v=12";
+import { MockConversation } from "./mock.js?v=12";
 
 const MOCK = new URLSearchParams(location.search).has("mock");
 const $ = (id) => document.getElementById(id);
@@ -311,6 +311,12 @@ function afterIntake() {
 
 function operators() { return state.help?._operators ?? []; }
 
+// True when the confirmed ambulance is not the first one offered on the intake call.
+function changedOperator() {
+  const first = state.attempts[0], c = state.confirmed;
+  return Boolean(c && first && (c.id ?? c.provider + c.type) !== (first.id ?? first.provider + first.type));
+}
+
 function currentOperator() { return state.confirmed ?? state.attempts[state.attempts.length - 1] ?? null; }
 
 function caseFacts() {
@@ -414,13 +420,13 @@ function goToCallback(confirmed) {
   setStepper();
   const h = state.help?.hospital;
   const result = confirmed
-    ? `Ambulance confirmed. Operator: ${state.confirmed.provider}. Type: ${state.confirmed.type}. Arriving in about ${state.confirmed.eta_minutes} minutes. Fare agreed with the operator: INR ${state.confirmed.fare_inr}, paid to the driver after the trip. Vehicle and driver details sent on WhatsApp.`
+    ? `Ambulance confirmed. Operator: ${state.confirmed.provider}. Type: ${state.confirmed.type}. Arriving in about ${state.confirmed.eta_minutes} minutes. Fare agreed with the operator: INR ${state.confirmed.fare_inr}, paid to the driver after the trip. Vehicle and driver details sent on WhatsApp.${changedOperator() ? ` The nearest ambulance quoted on the first call (about ${state.attempts[0].eta_minutes} minutes) was not available, so this is the next one.` : ""}`
     : `No ambulance could be confirmed after ${state.attempts.length} operator calls. Nearest suitable hospital: ${h ? `${h.name}, about ${h.travel_minutes} minutes by road` : "unknown"}.`;
   setStatus("Incoming callback for the caller.", "ring");
   setAction("Answer the callback as the caller", () =>
     startSession({
       stage: "CALLBACK", lang,
-      firstLine: callbackOpening(lang, confirmed, state.confirmed?.eta_minutes, state.confirmed?.fare_inr),
+      firstLine: callbackOpening(lang, confirmed, state.confirmed?.eta_minutes, state.confirmed?.fare_inr, changedOperator()),
       extra: { case_summary: caseSummary(), booking_result: result },
     }), "ring");
 }

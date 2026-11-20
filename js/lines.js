@@ -25,10 +25,16 @@ export function operatorOpening(lang, c) {
   return `${head} ${need} Fare is ${c.fare} rupees, paid by the family after the trip. Can you dispatch now at this fare?`;
 }
 
-export function callbackOpening(lang, confirmed, eta, fare) {
+// changed: the confirmed ambulance is not the one quoted on the intake call (the first operator
+// did not pick up or declined), so the caller is told why the time or fare is different.
+export function callbackOpening(lang, confirmed, eta, fare, changed = false) {
   if (confirmed) {
-    if (lang === "Hindi") return `एम्बुलेंस हेल्पलाइन से कॉल बैक है। आपकी एम्बुलेंस कन्फर्म हो गई है, लगभग ${eta} मिनट में पहुँचेगी। किराया ${fare} रुपये है, ट्रिप के बाद ड्राइवर को देना है।`;
-    return `Ambulance Helpline calling back. Your ambulance is confirmed and should reach you in about ${eta} minutes. The fare is ${fare} rupees, paid to the driver after the trip.`;
+    if (lang === "Hindi") {
+      const why = changed ? " सबसे नज़दीकी एम्बुलेंस उपलब्ध नहीं थी, इसलिए अगली एम्बुलेंस बुक की है।" : "";
+      return `एम्बुलेंस हेल्पलाइन से कॉल बैक है।${why} आपकी एम्बुलेंस कन्फर्म हो गई है, लगभग ${eta} मिनट में पहुँचेगी। किराया ${fare} रुपये है, ट्रिप के बाद ड्राइवर को देना है।`;
+    }
+    const why = changed ? " The nearest ambulance was not available, so we booked the next one." : "";
+    return `Ambulance Helpline calling back.${why} Your ambulance is confirmed and should reach you in about ${eta} minutes. The fare is ${fare} rupees, paid to the driver after the trip.`;
   }
   if (lang === "Hindi") return "एम्बुलेंस हेल्पलाइन से कॉल बैक है। माफ़ कीजिए, अभी तक कोई एम्बुलेंस कन्फर्म नहीं हुई। हमारे डिस्पैचर अब आपका केस खुद संभाल रहे हैं।";
   return "Ambulance Helpline calling back. I am sorry, no ambulance has confirmed yet. A dispatcher is now handling your case personally.";

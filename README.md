@@ -90,7 +90,7 @@ node --test tests/dispatch.test.mjs
 
 ## Test log
 
-Every call run on the live demo, in order, including failures. Twelve test cases, 20 conversations in all: most cases are an intake call plus operator and callback calls. One 3-second call that was hung up before anyone spoke is left out.
+Every call run on the live demo, in order, including failures. Thirteen test cases, 22 conversations in all: most cases are an intake call plus operator and callback calls. One 3-second call that was hung up before anyone spoke is left out.
 
 | # | Date | Scenario | Language | Result | What happened | Change made |
 |---|---|---|---|---|---|---|
@@ -106,6 +106,7 @@ Every call run on the live demo, in order, including failures. Twelve test cases
 | 10 | 17 Nov 2026, 16:20 | Hospital transfer, Artemis to CK Birla, Gurugram. Live operator in Hindi asks about the fare | English intake, Hindi operator | Pass, with changes | Pickup and destination were read back in one line, as fixed in test 9. Three gaps: the agent asked "awake?" and "breathing?" though the caller asked for a patient transfer vehicle; the agent told the operator the fare was not its business; no exact fare reached the caller. The page was also still serving the old code, so this call ran without test 9's fixes for operators and trip distance. | An explicit PTA request skips the awake and breathing questions. Operators are offered an exact fare and must accept it. The callback and WhatsApp give that fare. Urgent calls have a 20-minute cutoff, for both the offer and the operator's quoted time. |
 | 11 | 17 Nov 2026, 16:24 | Manesar, caller has trouble breathing, names several areas, cannot give a landmark | English | Fail, fixed | The agent asked which area, which was right. Then it asked for a landmark twice, asked the caller to spell Manesar, and handed off for "Location not confirmed" though area and city were clear. The cutoff and cab advice were never reached. | A landmark is asked for once and is optional. A confirmed area and city are enough to continue. Spelling is only for words the agent did not catch. |
 | 12 | 17 Nov 2026, 16:40 | Manesar, chest pain, not breathing normally, no landmark | English | Pass | Landmark asked once, then accepted as unknown. No ACLS within 20 minutes, so no ambulance was offered. The agent named Manesar Community Hospital, 2 minutes away, and the caller chose to go by own vehicle. | None |
+| 13 | 20 Nov 2026, 14:38 | Retest of test 8: Indraprastha Apollo, Delhi to Bhatia Hospital, Gurugram. Simulated operators, first does not pick up | English | Pass, with change | Booked as a Delhi NCR transfer, no hand-off. PTA quoted at 3 minutes, priced on the 24 km trip. The first operator did not pick up, so the next PTA confirmed at 23 minutes and INR 2,000. The callback gave 23 minutes with no reason, and the caller asked why it was not 3. The caller also declined to give names, which the agent accepted. | When the confirmed ambulance is not the one quoted, the callback now says the nearest one was not available and the next one was booked, in Hindi and English. |
 
 ## Known limits
 
