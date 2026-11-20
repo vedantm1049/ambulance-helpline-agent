@@ -144,3 +144,14 @@ test("Transfer between two city-centre estimates does not price a 0 km trip", ()
   assert.equal(r.trip_km_estimated, true);
   assert.ok(r.hospital.travel_minutes > 0);
 });
+
+test("Delhi to Gurugram transfer is in scope and priced on the real distance", () => {
+  const r = findNearestHelp({ city: "Delhi", emergency_type: "Transfer from hospital, stable patient", patient_awake: "Yes", patient_breathing_normally: "Yes", destination: "Bhatia Hospital, Gurugram" }, { locationText: "Indraprastha Apollo Hospital, Delhi" });
+  assert.equal(r.error, undefined);
+  assert.ok(r.trip_km > 8, `trip_km ${r.trip_km}`);
+});
+
+test("Delhi to Bangalore transfer is refused as inter-city", () => {
+  const r = findNearestHelp({ city: "Delhi", emergency_type: "Transfer from hospital, stable patient", patient_awake: "Yes", patient_breathing_normally: "Yes", destination: "Manipal Hospital, Bangalore" }, { locationText: "Saket, Delhi" });
+  assert.equal(r.error, "inter_city_transfer");
+});

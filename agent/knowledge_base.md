@@ -24,12 +24,14 @@ The call taker chooses the type from the caller's answers. Callers do not need t
 ## Cost
 - The fare depends on the ambulance type and the distance.
 - The call taker states a fare range before booking. The caller decides after hearing it.
-- Fares are set by the ambulance partner. The call taker cannot negotiate them. A dispatcher can discuss the fare on the callback.
-- Payment is made to the ambulance partner at the end of the trip.
+- The exact fare is agreed with the ambulance operator before dispatch and given to the caller on the callback and on WhatsApp.
+- Fares cannot be negotiated.
+- Payment is made to the driver at the end of the trip.
 
 ## Transfers
-- The helpline arranges transfers from one hospital to another within the city, for stable and unstable patients.
-- It does not arrange inter-city transfers.
+- The helpline arranges transfers from one hospital to another, for stable and unstable patients, within Delhi NCR or within Bangalore.
+- Delhi, Gurugram and Noida count as one city. A transfer between them, such as Delhi to Gurugram, is arranged.
+- It does not arrange transfers between Delhi NCR and Bangalore, or to any other city.
 
 ## What the caller will be asked
 1. Location and nearest landmark. The caller may be asked to spell a name.

@@ -137,6 +137,9 @@ export function normaliseCity(v) {
   return "Other";
 }
 
+// Service regions. Delhi, Gurugram and Noida are one region: a transfer between them is in scope.
+export const regionOf = (city) => (city === "Bangalore" ? "Bangalore" : ["Delhi", "Gurugram", "Noida"].includes(city) ? "Delhi NCR" : null);
+
 export function matchEmergencyType(v) {
   const s = norm(v);
   return EMERGENCY_TYPES.find((t) => norm(t) === s)
@@ -236,10 +239,16 @@ export function findNearestHelp({ city, emergency_type, patient_awake, patient_b
   const t = triage({ emergency_type, patient_awake, patient_breathing_normally });
   const isTransfer = t.type.startsWith("Transfer from hospital");
   const dest = isTransfer ? resolvePlace(destination) : null;
-  // 1.3: roads are longer than straight lines. If either end is only a city-centre estimate,
-  // the straight-line distance means nothing (both ends can land on the same point), so use the 8 km default.
-  const tripEstimated = !dest || dest.estimated || pos.source !== "area named on the call" && pos.source !== "shared location";
-  const tripKm = tripEstimated ? 8 : Math.max(2, Math.round(km(pos, dest) * 1.3));
+  if (dest && regionOf(dest.city) !== regionOf(c)) {
+    return { error: "inter_city_transfer", message: "The destination is outside this region. Transfers between Delhi NCR and Bangalore, or to other cities, are not arranged. Hand off to a dispatcher." };
+  }
+  // 1.3: roads are longer than straight lines. Within one city, a city-centre estimate makes the
+  // straight-line distance meaningless (both ends can land on the same point), so use the 8 km default.
+  // Across cities in Delhi NCR, the distance between the two points is still a fair estimate.
+  const exact = dest && !dest.estimated && (pos.source === "area named on the call" || pos.source === "shared location");
+  const crossCity = dest && dest.city !== c;
+  const tripEstimated = !exact;
+  const tripKm = exact || crossCity ? Math.max(2, Math.round(km(pos, dest) * 1.3)) : 8;
 
   let candidates = rankAmbulances(t.required, pos, c, tripKm);
   let fallback = false;
